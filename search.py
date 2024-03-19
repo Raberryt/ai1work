@@ -127,7 +127,7 @@ def foodHeuristic(state, problem):
     problem.heuristicInfo['wallCount']
     """
     "*** YOUR CODE HERE for task1 ***"
-
+    print("test for submits...")
     # comment the below line after you implement the algorithm
     util.raiseNotDefined()
 
