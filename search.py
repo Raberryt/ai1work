@@ -298,8 +298,9 @@ class MAPFProblem(SearchProblem):
         "Returns successor states, the actions they require, and a cost of 1."
         if agent != None:
             successors = []
+            directions = [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST, Directions.STOP]
             # self._expanded += 1  # DO NOT CHANGE
-            for direction in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST, Directions.STOP]:
+            for direction in directions:
                 #pacmposition,foodgrid=state
                 x, y = state
                 dx, dy = Actions.directionToVector(direction)
@@ -363,154 +364,106 @@ def manhattan_dist(a, b):
         # find all path for a with constraints
     
 
-def conflictBasedSearch(problem: MAPFProblem):
+def conflictBasedSearch(problem):
     """
-        Conflict-based search algorithm.
-        Input: MAPFProblem
-        Output(IMPORTANT!!!): A dictionary stores the path for each pacman as a list {pacman_name: [action1, action2, ...]}.
-        
+    Conflict-based search algorithm.
+    Input: MAPFProblem
+    Output: A dictionary stores the path for each agent as a list {agent_name: [action1, action2, ...]}.
     """
-    "*** YOUR CODE HERE for task3 ***"
-    ## cbs confilt
-    # comment the below line after you implement the function
-    # util.raiseNotDefined()
-    root = Node(constraints={},path={},solution={},cost=0)
+    root = Node(constraints={}, path={}, solution={}, cost=0)
     for agent in problem.getAgents():
-        path,solution =  astartSearchforConflict(problem,agent,root.constraints)
-        # print('初始解决方案',path)
+        path, solution = aStarSearchForConflict(problem, agent, root.constraints)
         root.path[agent] = path
         root.solution[agent] = solution
-        
-    root.cost = sum([len(path) for path in root.solution.values()])
-    # print('成本',root.cost)
-    Q = util.PriorityQueue()
-    Q.push(root,root.cost)
-    while not Q.isEmpty():
-        node = Q.pop()
-        # print('node.path',node.path)
+    root.cost = sum(len(path) for path in root.solution.values())
+
+    queue = util.PriorityQueue()
+    queue.push(root, root.cost)
+
+    while not queue.isEmpty():
+        node = queue.pop()
         conflict = findConflict(node.path)
-        # print('新解的成本',node.cost,'解决方案',node.path)
-        # print('冲突',conflict)
         if not conflict:
-            # print(node.path)
-            print('最终解决方案',node.solution)
             return node.solution
-        
+
         for agent in conflict['agents']:
-            # print(agent)
-            # print("继续查找新的解...")
             new_constraints = node.constraints.copy()
-            new_constraints[(agent,conflict['x'],conflict['y'],conflict['t'])] = True
-            new_node = Node(constraints=new_constraints,path=node.path.copy(),solution=node.solution,cost=0)
-            path,solution = astartSearchforConflict(problem,agent,new_constraints)
+            new_constraints[(agent, conflict['x'], conflict['y'], conflict['t'])] = True
+            new_node = Node(constraints=new_constraints, path=node.path.copy(), solution=node.solution.copy(), cost=0)
+            path, solution = aStarSearchForConflict(problem, agent, new_constraints)
             new_node.path[agent] = path
             new_node.solution[agent] = solution
-            new_node.cost = sum([len(path) for path in new_node.solution.values()])
-            # print('新解的成本',new_node.cost,'解决方案',new_node.path,'solution.values()',new_node.solution.values())
-            Q.push(new_node,new_node.cost)
-            
-        # print("结束一次探索....")
+            new_node.cost = sum(len(path) for path in new_node.solution.values())
+            queue.push(new_node, new_node.cost)
+
     return None
 
 
 class Node:
-    def __init__(self,constraints,path,solution,cost):
+    def __init__(self, constraints, path, solution, cost):
         self.constraints = constraints
-        self.solution = solution
         self.path = path
-        self.cost =cost
-    def __lt__(self,other):
-        return self.cost  < other.cost
+        self.solution = solution
+        self.cost = cost
+
+    def __lt__(self, other):
+        return self.cost < other.cost
 
 
-def mannHeuristic(p1,p2):
-    x1,y1 = p1
-    x2,y2 = p2
-    
-    return abs(x1-x2) + abs(y1-y2)
-    # pass
-def getGoalState(problem,agent):
-    for x in range(problem.getFoodGrid().width):
-        for y in range(problem.getFoodGrid().height):
-            if problem.getFoodGrid()[x][y] == agent:
-                return (x,y)
-
-    return None
-
-def is_goal_constrained(goal_loc, timestep, agent, constraints):
-    """
-    checks if there's a constraint on the goal in the future.
-    goal_loc      - goal location (x, y)
-    timestep      - current timestep
-    agent         - the agent that is being checked
-    constraints   - generated constraints dictionary
-    """
-    for (a, x, y, t) in constraints.keys():
-        if a == agent and (x, y) == goal_loc and t > timestep:
-            return True
-    return False
-
-def astartSearchforConflict(problem,agent,constraints):
-    myPQ = util.PriorityQueue()
-    # closed_list = dict()
-    startState = problem.getStartState()[0][agent]
-    goalState = getGoalState(problem,agent)
-    
-    # print(goalState,'goalState','agent',agent)
-    startNode = (startState,0,[startState], [],0)
-    myPQ.push(startNode, 0)
-    # closed_list[(startState, 0)] = startNode
+def aStarSearchForConflict(problem, agent, constraints):
+    queue = util.PriorityQueue()
+    start_state = problem.getStartState()[0][agent]
+    goal_state = getGoalState(problem, agent)
+    start_node = (start_state, 0, [start_state], [], 0)
+    queue.push(start_node, 0)
     visited = set()
-    while not myPQ.isEmpty():
-        current_node = myPQ.pop()
-        current_state, current_cost, current_path,current_solution,current_time = current_node
-        
-        if current_state == goalState:
-            # print(state)
-            return (current_path,current_solution)
-        if (current_state,current_time) in visited:
+
+    while not queue.isEmpty():
+        current_state, current_cost, current_path, current_solution, current_time = queue.pop()
+        if current_state == goal_state:
+            return current_path, current_solution
+        if (current_state, current_time) in visited:
             continue
-        visited.add((current_state,current_time))
-        for next_state,action,step_cost in problem.getSuccessors(current_state,agent):
-            # print(next_state)
-            if ((agent,next_state[0],next_state[1],current_time+1) not in constraints.keys()):
-                
+        visited.add((current_state, current_time))
+
+        for next_state, action, step_cost in problem.getSuccessors(current_state, agent):
+            if (agent, next_state[0], next_state[1], current_time + 1) not in constraints:
                 new_cost = current_cost + step_cost
                 new_path = current_path + [next_state]
                 new_solution = current_solution + [action]
                 new_time = current_time + 1
-                h_cost = mannHeuristic(current_state,goalState)
+                h_cost = manhattanHeuristic(current_state, goal_state)
                 total_cost = new_cost + h_cost
-                new_node = (next_state,new_cost,new_path,new_solution,new_time)
-                myPQ.push(new_node,total_cost)
+                new_node = (next_state, new_cost, new_path, new_solution, new_time)
+                queue.push(new_node, total_cost)
 
-    return []  # Goal not found
+    return [], []
+
 
 def findConflict(paths):
-    conflict = {}
-    max_length = max([len(path) for path in paths.values()])
+    max_length = max(len(path) for path in paths.values())
     for index in range(max_length):
         arrive_positions = {}
-        #获取所有agent当前的位置
-        # print(paths)
-        # for agent in paths:
-        #     print('paths[agent]',paths[agent])
-        position_index = {agent:paths[agent][index] for agent in paths if index < len(paths[agent])}
-        # print(position_index)
-        # agent,path = position_index.items()
-        for agent,position in position_index.items():
-            # print('position',position)
+        position_index = {agent: paths[agent][index] for agent in paths if index < len(paths[agent])}
+        for agent, position in position_index.items():
             if position in arrive_positions:
-                
-                # x,y = position[0],position[1]
-                conflict['x'] = position[0]
-                conflict['y'] = position[1]
-                conflict['t'] = index
-                conflict['agents'] = [agent,arrive_positions[position]]
-                return conflict
-            
+                return {'x': position[0], 'y': position[1], 't': index, 'agents': [agent, arrive_positions[position]]}
             arrive_positions[position] = agent
-    return conflict    
+    return {}
+
+
+def manhattanHeuristic(p1, p2):
+    x1, y1 = p1
+    x2, y2 = p2
+    return abs(x1 - x2) + abs(y1 - y2)
+
+
+def getGoalState(problem, agent):
+    for x in range(problem.getFoodGrid().width):
+        for y in range(problem.getFoodGrid().height):
+            if problem.getFoodGrid()[x][y] == agent:
+                return (x, y)
+    return None
 
 "###WARNING: Altering the following functions is STRICTLY PROHIBITED. Failure to comply may result in a grade of 0 for Assignment 1.###"
 "###WARNING: Altering the following functions is STRICTLY PROHIBITED. Failure to comply may result in a grade of 0 for Assignment 1.###"
