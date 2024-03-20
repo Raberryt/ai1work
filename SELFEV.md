@@ -6,7 +6,7 @@
 
 **Student:**
 
-Jingjing Deng - 1402323 - your canvas student login
+Jingjing Deng - 1402323 - Jingjing DENG
 
 <!-- > [!IMPORTANT]
 > Replace the lines above with your correct details. Your student number should only be the **numbers**. For example:
